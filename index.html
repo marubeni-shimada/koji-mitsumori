@@ -362,11 +362,11 @@ tbody tr:hover .del button{color:var(--ink3)}
       <div id="drlist"></div>
     </div>
 
-    <div class="card" id="useCard" style="display:none">
+    <div class="card" id="useCard">
       <h2>AIの使用状況</h2>
-      <p class="note">読み取り1回ごとの実際のトークン数から計算しています。</p>
+      <p class="note">読み取り1回ごとの、実際に使ったトークン数から計算します。</p>
       <div class="rg" id="useg"></div>
-      <p class="note" id="usenote" style="margin-top:12px;margin-bottom:0"></p>
+      <p class="note" id="usenote" style="margin-top:12px;margin-bottom:0">接続すると、ここに回数と金額が出ます。</p>
     </div>
 
     <div class="card" id="res" style="display:none">
@@ -875,6 +875,7 @@ function takeFile(fl){
       loadObj(fromOCR(j.data));
       if(j.stats) renderUse(j.stats);
       var n=0; D.cats.forEach(function(c){ n+=c.lines.length; });
+      goStep(2); render();          /* 読み取れたら、そのまま②へ進む */
       showResult("AIが読み取りました（"+D.cats.length+"項目・"+n+"行）。数字が合っているか、下の仕入合計で確かめてください。違うところは次の画面で直せます。");
     })
     .catch(function(e){ ovl(false); alert("読み取りに失敗しました。\n\n"+e); });
@@ -1203,7 +1204,6 @@ function fmtY(v){ v=Math.round((v||0)*100)/100;
   return "¥"+v.toLocaleString("ja-JP",{minimumFractionDigits:2,maximumFractionDigits:2}); }
 function renderUse(st){
   if(!st) return;
-  document.getElementById("useCard").style.display="";
   function blk(lab,o){
     return '<div><div class="k">'+lab+'</div><div class="v">'+(o.n||0)+' 回</div>'
       +'<div class="k" style="margin-top:3px;color:var(--ink2)">'+fmtY(o.yen)+'</div>'
