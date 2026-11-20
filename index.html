@@ -362,6 +362,13 @@ tbody tr:hover .del button{color:var(--ink3)}
       <div id="drlist"></div>
     </div>
 
+    <div class="card" id="useCard" style="display:none">
+      <h2>AIの使用状況</h2>
+      <p class="note">読み取り1回ごとの実際のトークン数から計算しています。</p>
+      <div class="rg" id="useg"></div>
+      <p class="note" id="usenote" style="margin-top:12px;margin-bottom:0"></p>
+    </div>
+
     <div class="card" id="res" style="display:none">
       <h2>読み取り結果</h2>
       <p class="note" id="resnote"></p>
@@ -860,12 +867,13 @@ function takeFile(fl){
   var r=new FileReader();
   r.onload=function(){
     ovl(true,"PDFを読み取っています");
-    fetch(GAS_URL,{method:"POST",body:JSON.stringify({pdf:r.result})})
+    fetch(GAS_URL,{method:"POST",body:JSON.stringify({pdf:r.result,name:fl.name})})
     .then(function(res){ return res.json(); })
     .then(function(j){
       ovl(false);
       if(j.error){ alert("読み取れませんでした。\n\n"+j.error); return; }
       loadObj(fromOCR(j.data));
+      if(j.stats) renderUse(j.stats);
       var n=0; D.cats.forEach(function(c){ n+=c.lines.length; });
       showResult("AIが読み取りました（"+D.cats.length+"項目・"+n+"行）。数字が合っているか、下の仕入合計で確かめてください。違うところは次の画面で直せます。");
     })
@@ -1191,11 +1199,34 @@ function paintKey(){
   p.className="kpill "+(HASKEY?"ok":"no");
   p.textContent=HASKEY?"つながっています":"未設定";
 }
+function fmtY(v){ v=Math.round((v||0)*100)/100;
+  return "¥"+v.toLocaleString("ja-JP",{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function renderUse(st){
+  if(!st) return;
+  document.getElementById("useCard").style.display="";
+  function blk(lab,o){
+    return '<div><div class="k">'+lab+'</div><div class="v">'+(o.n||0)+' 回</div>'
+      +'<div class="k" style="margin-top:3px;color:var(--ink2)">'+fmtY(o.yen)+'</div>'
+      +'<div class="k">'+(((o["in"]||0)+(o.out||0))).toLocaleString("ja-JP")+' トークン</div></div>';
+  }
+  document.getElementById("useg").innerHTML=blk("今日",st.today)+blk("今月",st.month)+blk("累計",st.total);
+  var p=st.price||{};
+  document.getElementById("usenote").textContent=
+    "単価は 入力 $"+p["in"]+"／出力 $"+p.out+"（100万トークンあたり）、為替 "+p.rate+"円で計算しています。"
+    +"無料わくの中なら実際の請求は0円です。明細はGASの「工事材料見積 AI使用ログ」に1行ずつ残ります。";
+}
+function loadStats(){
+  if(!GAS_URL) return;
+  fetch(GAS_URL,{method:"POST",body:JSON.stringify({stats:1})})
+    .then(function(r){ return r.json(); })
+    .then(function(j){ if(j.stats) renderUse(j.stats); })
+    .catch(function(){});
+}
 function checkGas(){
   if(!GAS_URL){ HASKEY=false; paintKey(); return; }
   fetch(GAS_URL,{method:"POST",body:JSON.stringify({ping:1})})
     .then(function(r){ return r.json(); })
-    .then(function(j){ HASKEY=!!(j.ok&&j.hasKey); paintKey();
+    .then(function(j){ HASKEY=!!(j.ok&&j.hasKey); paintKey(); if(HASKEY) loadStats();
       if(j.ok&&!j.hasKey) alert("GASにはつながりましたが、APIキーが未設定です。\nGASの「スクリプト プロパティ」に GEMINI_KEY を登録してください。"); })
     .catch(function(){ HASKEY=false; paintKey(); });
 }
